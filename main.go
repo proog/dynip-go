@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -14,10 +15,12 @@ type ipInfo struct {
 }
 
 var ips = make(map[string]ipInfo)
+var secret = os.Getenv("DYNIP_SECRET")
 
 func main() {
 	addr := "localhost:42514"
-	log.Printf("Using %s", addr)
+	log.Printf("Using address %s", addr)
+	log.Printf("Using secret \"%s\"", secret)
 
 	http.HandleFunc("/", handle)
 	error := http.ListenAndServe(addr, nil)
@@ -56,6 +59,11 @@ func get(name string, w http.ResponseWriter) {
 func put(name string, w http.ResponseWriter, r *http.Request) {
 	if len(name) == 0 {
 		http.Error(w, "Empty names not allowed", 400)
+		return
+	}
+
+	if xs := r.Header.Get("X-Secret"); xs != secret {
+		http.Error(w, "Invalid secret", 401)
 		return
 	}
 
