@@ -9,13 +9,8 @@ import (
 	"time"
 )
 
-type ipInfo struct {
-	IP      string
-	Updated time.Time
-}
-
-var ips = make(map[string]ipInfo)
 var secret = os.Getenv("DYNIP_SECRET")
+var persistence = NewPersistence("localhost:6379")
 
 func main() {
 	addr := "localhost:42514"
@@ -44,8 +39,8 @@ func handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func get(name string, w http.ResponseWriter) {
-	if info, ok := ips[name]; ok {
-		w.Header().Set("X-Updated", info.Updated.String())
+	if info, ok := Load(persistence, name); ok {
+		w.Header().Set("X-Updated", info.Updated)
 		fmt.Fprintf(w, info.IP)
 
 		log.Printf("Returned %s = %s", name, info.IP)
@@ -67,11 +62,12 @@ func put(name string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info := ipInfo{
+	info := IPInfo{
 		IP:      requestIP(r),
-		Updated: time.Now().UTC(),
+		Updated: time.Now().UTC().String(),
 	}
-	ips[name] = info
+
+	Save(persistence, name, info)
 
 	w.WriteHeader(http.StatusCreated)
 
